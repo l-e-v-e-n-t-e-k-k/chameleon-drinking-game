@@ -80,7 +80,8 @@ function loggedIn(room,uid){assert(room?.members?.[uid]===true,'Nem vagy ennek a
 function isHost(room,uid){assert(room.public.hostUid===uid,'Csak a host teheti meg.',403);}
 function allConnected(room){return playerIds(room).every(uid=>room.presence?.[uid]===true);}
 function wordPair(room){
-  const used=room.public.usedWords||[];
+  const used=Array.isArray(room.public.usedWords)?room.public.usedWords:[];
+  room.public.usedWords=used;
   const all=WORDS[room.public.settings.language];
   let candidates=all.map((pair,i)=>({pair,i})).filter(x=>!used.includes(x.i));
   if(!candidates.length){room.public.usedWords=[]; candidates=all.map((pair,i)=>({pair,i}));}
@@ -92,7 +93,7 @@ function pickEvent(room,n){
   const s=room.public.settings;
   if(!s.eventsEnabled||randomInt(100)>=s.eventChance) return null;
   const items=EVENT_IDS.filter(id=>s.enabledEvents[id] && !(id==='benched'&&n<4)).map(id=>({id,type:'base'}));
-  for(const c of s.customEvents.filter(c=>c.enabled)) items.push({...c,type:'custom'});
+  for(const c of (Array.isArray(s.customEvents)?s.customEvents:[]).filter(c=>c.enabled)) items.push({...c,type:'custom'});
   if(!items.length) return null;
   const chosen=choose(items);
   if(chosen.id==='category_lock') chosen.category=choose(s.language==='hu'?['főnevek','melléknevek','igék']:['nouns','adjectives','verbs']);
