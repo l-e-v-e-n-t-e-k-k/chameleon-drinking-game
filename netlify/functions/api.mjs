@@ -157,6 +157,9 @@ function pauseIfNeeded(room){
 }
 async function changeRoom(db, code, uid, fn){
   const ref=db.ref(`rooms/${code}`);
+  // Read first: RTDB transactions may initially invoke their callback with null
+  // before the server's existing value has populated the local cache.
+  assert((await ref.get()).exists(),'Nem található a szoba.',404);
   let error=null;
   const tx=await ref.transaction(room=>{
     error=null;
@@ -204,6 +207,9 @@ export default async function handler(request){
     if(action==='join'){
       const name=cleanName(body.name);
       const ref=db.ref(`rooms/${code}`);
+      // Prime the transaction cache and distinguish a missing room from
+      // an initial locally unknown value.
+      assert((await ref.get()).exists(),'Nem található a szoba.',404);
       let error=null;
       const tx=await ref.transaction(room=>{
         error=null;
