@@ -159,9 +159,16 @@ async function changeRoom(db, code, uid, fn){
   const ref=db.ref(`rooms/${code}`);
   // Read first: RTDB transactions may initially invoke their callback with null
   // before the server's existing value has populated the local cache.
-  assert((await ref.get()).exists(),'Nem található a szoba.',404);
+  const initial=(await ref.get()).val();
+  assert(initial,'Nem található a szoba.',404);
+  let firstCall=true;
   let error=null;
   const tx=await ref.transaction(room=>{
+    // A Firebase első híváskor null helyi cache-t adhat.
+    // A tranzakció ekkor a korábban lekért értékből állít elő javaslatot;
+    // a szerver hash-ellenőrzése konfliktusnál újrafuttatja friss adatokkal.
+    if (room===null && firstCall) room=structuredClone(initial);
+    firstCall=false;
     error=null;
     try {
       loggedIn(room,uid);
@@ -209,9 +216,13 @@ export default async function handler(request){
       const ref=db.ref(`rooms/${code}`);
       // Prime the transaction cache and distinguish a missing room from
       // an initial locally unknown value.
-      assert((await ref.get()).exists(),'Nem található a szoba.',404);
+      const initial=(await ref.get()).val();
+      assert(initial,'Nem található a szoba.',404);
+      let firstCall=true;
       let error=null;
       const tx=await ref.transaction(room=>{
+        if (room===null && firstCall) room=structuredClone(initial);
+        firstCall=false;
         error=null;
         try{
           assert(room,'Nem található a szoba.',404);
