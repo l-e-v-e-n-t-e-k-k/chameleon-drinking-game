@@ -1,0 +1,25 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        "public": {
+          ".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).val() === true"
+        },
+        "private": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('members').child($uid).val() === true"
+          }
+        },
+        "presence": {
+          ".read": "auth != null && root.child('rooms').child($code).child('members').child(auth.uid).val() === true",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('members').child($uid).val() === true",
+            ".validate": "newData.isBoolean()"
+          }
+        }
+      }
+    }
+  }
+}
