@@ -26,7 +26,7 @@
     import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js';
     import { getDatabase, ref, onValue, onDisconnect, set } from 'https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js';
 
-    const BASE_EVENTS=[['category_lock','Category Lock'],['down_drink','Down Your Drink'],['give_drinks','Give Out Drinks'],['trait_check','Trait Check'],['drinking_buddy','Drinking Buddy'],['benched','Benched!'],['rule_maker','Rule Maker']];
+    const BASE_EVENTS=[['category_lock','Category Lock'],['down_drink','Down Your Drink'],['give_drinks','Give Out Drinks'],['trait_check','Trait Check'],['drinking_buddy','Drinking Buddy'],['benched','Benched!'],['rule_maker','Rule Maker'],['identity_crisis','Identity Crisis']];
     const $=id=>document.getElementById(id);
     const escape=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const app={auth:null,db:null,code:null,pub:null,private:null,presence:{},online:false,unsubs:[],shown:false,edit:null,dirty:false,pending:false,clockOffset:0,lastAdvance:0,lastSync:0,draft:{},notice:null,homeMode:null};
@@ -60,7 +60,7 @@
       const mode=app.homeMode||(queryCode?'join':null);
       const lastName=escape(safeStorage('getItem','lastName')||'');
       const top=header('<span class="micro">02—08 PLAYERS / LIVE</span>');
-      if(!mode)return `${top}<div class="hero"><div class="eyebrow home-kicker">THE BLUFF PARTY GAME</div><h1><span class="title-line">CHAMELEON</span><span class="title-line glow">DRINKING GAME.</span></h1><p class="subtext">Egy szó. Egy imposztor. A szabályokat ti alakítjátok.</p></div><div class="home-buttons"><button class="btn primary full" data-home="create" type="button">SZOBALÉTREHOZÁS &nbsp; ↗</button><button class="btn secondary full" data-home="join" type="button">CSATLAKOZÁS &nbsp; →</button></div><div class="home-footnote"><span>TRUST NOBODY.</span><span>YOUR PARTY. YOUR RULES.</span></div>${footer()}`;
+      if(!mode)return `${top}<div class="hero"><div class="eyebrow home-kicker">THE BLUFF PARTY GAME</div><h1><span class="title-line">CHAMELEON</span><span class="title-line glow">DRINKING GAME.</span></h1><p class="subtext">Egy szó. Egy imposztor. A szabályokat ti alakítjátok.</p></div><div class="home-buttons"><button class="btn primary full" data-home="create" type="button">SZOBALÉTREHOZÁS &nbsp; ↗</button><button class="btn secondary full" data-home="join" type="button">CSATLAKOZÁS &nbsp; →</button></div>${footer()}`;
       if(mode==='create')return `${top}<button class="back-link" data-home="back" type="button">← VISSZA</button><section class="home-form"><div class="eyebrow">01 / CREATE ROOM</div><h2>INDULHAT A PARTI.</h2><p class="subtext">Adj meg egy nevet, és máris létrejön a saját szobád.</p><form id="create-form"><div class="field"><label for="create-name">JÁTÉKOSNEVED</label><input id="create-name" name="name" class="control" autocomplete="nickname" maxlength="24" placeholder="Írd be a neved…" required value="${lastName}"></div><button class="btn primary full" type="submit">SZOBA LÉTREHOZÁSA &nbsp; ↗</button></form></section>${footer()}`;
       return `${top}<button class="back-link" data-home="back" type="button">← VISSZA</button><section class="home-form"><div class="eyebrow">02 / JOIN ROOM</div><h2>${queryCode?'MEGHÍVTAK.':'CSATLAKOZZ A PARTIHOZ.'}</h2><p class="subtext">${queryCode?'Add meg a neved, és csatlakozz a szobához.':'Add meg a neved és a kapott hatjegyű szobakódot.'}</p>${queryCode?`<div class="join-invite"><div class="micro">MEGHÍVÓKÓD</div><div class="room-code">${escape(queryCode)}</div><div class="hint">Automatikusan kitöltve a meghívólinkből.</div></div>`:''}<form id="join-form"><div class="field"><label for="join-name">JÁTÉKOSNEVED</label><input id="join-name" name="name" class="control" autocomplete="nickname" maxlength="24" placeholder="Írd be a neved…" required value="${lastName}"></div><div class="field"><label for="join-code">SZOBAKÓD</label><input id="join-code" name="code" class="control" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC123" required value="${escape(queryCode)}"></div><button class="btn primary full" type="submit">CSATLAKOZÁS &nbsp; →</button></form></section>${footer()}`;
     }
@@ -71,6 +71,7 @@
     function settingsPanel(){const s=app.edit;return `<section class="panel" id="settings-panel"><h2>JÁTÉKBEÁLLÍTÁSOK</h2>
       <div class="field"><label for="round-setting">Körök száma</label><select class="control" id="round-setting">${Array.from({length:20},(_,i)=>`<option value="${i+1}" ${s.rounds===i+1?'selected':''}>${i+1} kör</option>`).join('')}</select></div>
       <div class="field"><label for="language-setting">Titkos szavak</label><select class="control" id="language-setting"><option value="hu" ${s.language==='hu'?'selected':''}>Magyar</option><option value="en" ${s.language==='en'?'selected':''}>English</option></select></div>
+      <div class="settings-row"><div><label for="impostor-no-word">Imposztor szó nélkül</label><div class="hint">Az imposztor csak a szerepét látja. Az Identity Crisis event ezt felülírja.</div></div><input class="toggle" id="impostor-no-word" type="checkbox" ${s.impostorNoWord?'checked':''}></div>
       <div class="settings-row"><label for="events-setting">Chaos eventek bekapcsolva</label><input class="toggle" id="events-setting" type="checkbox" ${s.eventsEnabled?'checked':''}></div>
       <div class="field" style="margin-top:14px"><label for="chance-setting">Event esélye: <strong id="chance-label">${s.eventChance}%</strong></label><input class="range" id="chance-setting" type="range" min="0" max="100" step="5" value="${s.eventChance}"></div>
       <div class="settings-row"><label for="rule-setting">Rule Maker: telefonon is rögzíthető</label><input class="toggle" id="rule-setting" type="checkbox" ${s.ruleRecord?'checked':''}></div>
@@ -88,7 +89,8 @@
       trait_check:()=>`A kezdő játékos mond egy jellemzőt. Akire igaz, az iszik.`,
       drinking_buddy:()=>`A kezdő játékos választ egy ivópartnert, aki akkor iszik, ha a másik is iszik. A kapcsolat az egész parti végéig él.`,
       benched:()=>`${escape(pname(app.pub.benched))} ebben a körben néző. Látja a saját szavát, de nem szavazhat, és nem lehet rá szavazni.`,
-      rule_maker:()=>`A kezdő játékos kitalál egy szabályt, amely a parti végéig érvényes.`
+      rule_maker:()=>`A kezdő játékos kitalál egy szabályt, amely a parti végéig érvényes.`,
+      identity_crisis:()=>`Senki sem látja a szerepét ebben a körben. Mindenki kap egy szót, és nem tudhatja, hogy ő az imposztor-e.`
     };
     function eventPanel(){const p=app.pub,e=p.event;if(!e)return `<div class="pill">✧ Ebben a körben nincs chaos event</div>`;
       const title=e.type==='custom'?e.title:BASE_EVENTS.find(x=>x[0]===e.id)?.[1];
@@ -104,8 +106,13 @@
       return elements.length?`<section class="panel"><h3>📜 Aktív, tartós szabályok</h3>${elements.join('')}</section>`:'';
     }
     function secretPanel(){const p=app.private;if(!p)return `<section class="panel"><p class="subtext">A titkos szó betöltése…</p></section>`;
-      return `<section class="panel"><div class="row" style="margin-bottom:12px"><h3 style="margin:0">🔒 Titkos szavad</h3><span class="tag">Csak te látod</span></div>
-      ${!app.shown?`<button class="secret hidden" id="secret-toggle" style="width:100%;color:inherit" type="button"><div class="blurred">● ● ● ● ● ●</div><div class="hint">Koppints a megtekintéshez</div></button>`:`<div class="secret"><div class="micro ${p.role==='IMPOSTOR'?'impostor':'innocent'}">${p.role==='IMPOSTOR'?'⚠ IMPOSTOR':p.role==='INNOCENT'?'✓ ÁRTATLAN':'BLUFF DUEL'}</div><div class="word">${escape(p.word)}</div><button class="btn ghost small" id="secret-toggle">Elrejtés</button></div>`}
+      const duel=app.pub?.mode==='duel';
+      const uncertain=p.hideRole===true;
+      const noWord=p.role==='IMPOSTOR' && p.word==null;
+      const roleText=duel?'BLUFF DUEL':uncertain?'TITKOS SZÓ':p.role==='IMPOSTOR'?'⚠ IMPOSTOR':'✓ ÁRTATLAN';
+      const wordText=noWord?'TE VAGY AZ IMPOSTOR':escape(p.word??'');
+      return `<section class="panel"><div class="row" style="margin-bottom:12px"><h3 style="margin:0">🔒 ${noWord?'Titkos szereped':'Titkos szavad'}</h3><span class="tag">Csak te látod</span></div>
+      ${!app.shown?`<button class="secret hidden" id="secret-toggle" style="width:100%;color:inherit" type="button"><div class="blurred">● ● ● ● ● ●</div><div class="hint">Koppints a megtekintéshez</div></button>`:`<div class="secret"><div class="micro ${!uncertain&&!duel&&p.role==='IMPOSTOR'?'impostor':'innocent'}">${roleText}</div><div class="word">${wordText}</div><button class="btn ghost small" id="secret-toggle">Elrejtés</button></div>`}
       </section>`;
     }
     function voting(){const p=app.pub,eligible=ids().filter(id=>id!==p.benched),threshold=Math.floor(eligible.length/2)+1,mine=p.votes?.[uid()]||null;
@@ -127,12 +134,12 @@
       ${eventPanel()}${secretPanel()}${lastingRules()}${p.mode==='duel'?duel():voting()}
       ${p.lastResult?`<details class="panel"><summary class="bold" style="cursor:pointer">Előző kör eredménye</summary>${resultDetails(p.lastResult)}</details>`:''}
       <div class="center"><button class="btn ghost small" data-action="leave">Kilépés</button></div>${footer()}`;}
-    function penalty(result){return result.penalty==='down_drink'?'🥤 DOWN YOUR DRINK — fejezd be az italodat':`🥤 ${result.sips} korty`;}
+    function penalty(result){return result.penalty==='down_drink'?'🥤 DOWN YOUR DRINK — opcionálisan fejezd be az italodat, vagy válassz alkoholmentes / nem ivós alternatívát.':`🥤 ${result.sips} korty – önkéntes, alkoholmentes alternatívával. A kihívás kihagyható.`;}
     function resultDetails(r){return `<p><strong>Kiszavazott / vesztes:</strong> ${escape(pname(r.loserUid))}</p><p><strong>Győztes:</strong> ${r.winnerSide==='impostor'?'Imposztor':r.winnerSide==='innocents'?'Ártatlanok':'A helyes döntést hozó játékos'}</p><div class="rule">${escape(penalty(r))}</div><div class="hint">${Object.entries(r.words||{}).map(([id,word])=>`${escape(pname(id))}: ${escape(word)}`).join(' · ')}</div>`;}
     function resultPage(){const p=app.pub,r=p.result||p.lastResult,remaining=Math.max(0,Math.ceil((p.resultEndsAt-now())/1000));return `${header('<span class="tag">ROUND RESULT</span>')}<section class="panel emphasis center flash"><div class="eyebrow">${r.winnerSide==='impostor'?'IMPOSTOR WINS':r.winnerSide==='innocents'?'INNOCENTS WIN':'BLUFF DUEL'}</div><h1 class="glow">${escape(pname(r.loserUid))}</h1><p class="subtext">Ő veszített a(z) ${r.round}. körben.</p><div class="divider"></div><div style="text-align:left">${resultDetails(r)}</div><div class="divider"></div><p class="micro" id="result-countdown">${p.round>=p.settings.rounds?'Játék vége':'Következő kör'} ${remaining} másodperc múlva…</p></section>${footer()}`;}
     function paused(){const p=app.pub,offline=ids().filter(id=>app.presence[id]!==true);return `${header('<span class="tag bad">SZÜNET</span>')}<section class="panel center"><h1>⏸</h1><h2>Várakozás a játékosokra</h2><p class="subtext">A játék automatikusan folytatódik, ha mindenki újra online.</p><div class="rule">${offline.length?'Offline: '+offline.map(id=>escape(pname(id))).join(', '):'Kapcsolat helyreállítása…'}</div><button class="btn secondary full" data-action="sync">Újraellenőrzés</button></section>
-      ${host()?`<section class="panel"><h3>Host: offline játékos eltávolítása</h3><p class="hint">Eltávolításkor az aktuális kör újraindul.</p>${offline.filter(id=>id!==uid()).map(id=>`<div class="settings-row"><span>${escape(pname(id))}</span><button class="btn danger small" data-kick="${id}">Eltávolítás</button></div>`).join('')}</section>`:app.presence[p.hostUid]!==true?`<section class="panel"><h3>A host lekapcsolódott</h3><button class="btn secondary full" data-action="claim">Host szerep átvétele (10 mp után)</button></section>`:''}${footer()}`;}
-    function finished(){const p=app.pub;return `${header('<span class="tag">GAME OVER</span>')}<div class="hero"><div class="eyebrow">PARTY COMPLETE</div><h1><span class="glow">GAME OVER.</span></h1><p class="subtext">${p.settings.rounds} kör teljesítve. Nincs pontozás, csak emlékek és gyanús pillantások.</p></div><section class="panel"><h2>Utolsó kör</h2>${p.lastResult?resultDetails(p.lastResult):''}</section>${lastingRules()}${host()?`<button class="btn primary full" data-action="restart">↻ Új játék ugyanebben a szobában</button>`:`<section class="panel center"><p class="subtext">A host indíthat új partit.</p></section>`}<div class="center" style="margin-top:16px"><button class="btn ghost small" data-action="leave">Kilépés</button></div>${footer()}`;}
+      ${host()?`<section class="panel"><h3>Host: offline játékos eltávolítása</h3><p class="hint">Eltávolításkor az aktuális kör újraindul, büntetés nélkül.</p>${offline.filter(id=>id!==uid()).map(id=>`<div class="settings-row"><span>${escape(pname(id))}</span><button class="btn danger small" data-kick="${id}">Eltávolítás</button></div>`).join('')}</section>`:app.presence[p.hostUid]!==true?`<section class="panel"><h3>A host lekapcsolódott</h3><button class="btn secondary full" data-action="claim">Host szerep átvétele (10 mp után)</button></section>`:''}${footer()}`;}
+    function finished(){const p=app.pub;return `${header('<span class="tag">GAME OVER</span>')}<div class="hero"><div class="eyebrow">PARTY COMPLETE</div><h1><span class="glow">GAME OVER.</span></h1><p class="subtext">${p.settings.rounds} kör teljesítve. Nincs pontozás, csak emlékek és gyanús pillantások.</p></div><section class="panel"><h2>Utolsó kör</h2>${p.lastResult?resultDetails(p.lastResult):''}</section>${lastingRules()}${host()?`<div class="stack"><button class="btn primary full" data-action="returnLobby">← Vissza a lobbyba / szabályok módosítása</button><button class="btn secondary full" data-action="restart">↻ Új játék ugyanilyen szabályokkal</button></div>`:`<section class="panel center"><p class="subtext">A host új játékot indíthat, vagy visszavihet mindenkit a lobbyba.</p></section>`}<div class="center" style="margin-top:16px"><button class="btn ghost small" data-action="leave">Kilépés</button></div>${footer()}`;}
     function render(){const root=$('app');if(!app.auth){return;}if(!app.code||!app.pub){root.innerHTML=home();return;}
       if(app.pub.status==='LOBBY'&&host()&&(!app.edit||!app.editInitialized)){app.edit=structuredClone(app.pub.settings);app.edit.customEvents ??= [];app.editInitialized=true;app.dirty=false;}
       const page=app.pub.status==='LOBBY'?lobby():app.pub.status==='ACTIVE'?active():app.pub.status==='RESULT'?resultPage():app.pub.status==='PAUSED'?paused():finished();
@@ -179,6 +186,7 @@
       if($('events-setting'))e.eventsEnabled=$('events-setting').checked;
       if($('chance-setting'))e.eventChance=Number($('chance-setting').value);
       if($('rule-setting'))e.ruleRecord=$('rule-setting').checked;
+      if($('impostor-no-word'))e.impostorNoWord=$('impostor-no-word').checked;
       document.querySelectorAll('[data-event-toggle]').forEach(el=>e.enabledEvents[el.dataset.eventToggle]=el.checked);
       document.querySelectorAll('[data-custom-toggle]').forEach(el=>e.customEvents[Number(el.dataset.customToggle)].enabled=el.checked);
       app.dirty=true;
@@ -215,6 +223,7 @@
         if(action==='buddy'){const target=$('buddy-target')?.value;if(target)await run('buddy',{target,roundId:app.pub.roundId});}
         if(action==='leave'){if(confirm('Biztosan kilépsz a szobából?')){await run('leave');clearRoom();}}
         if(action==='restart')await run('restart');
+        if(action==='returnLobby')await run('returnLobby');
         if(action==='claim')await run('claimHost');
         if(action==='sync')await run('sync');
       }catch(error){if(error.name!=='AbortError')toast(error.message);}
